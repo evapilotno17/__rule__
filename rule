@@ -1,0 +1,119 @@
+#!/usr/bin/env python3
+
+
+"""
+elementary cellular automata viewer - terminal edition
+======================================================
+
+this script lets you visualise any of the 256 elementary cellular automata rules
+( wolfram 1_D, 2_state, 3_neighbour systems ) directly in your terminal. it takes
+an optional rule number and an optional initial_width argument:
+
+    $ ./wolfram_automata.py                # random rule, random initial state
+    $ ./wolfram_automata.py 110            # rule 110, random initial state
+    $ ./wolfram_automata.py 30 120         # rule 30, 120_cell random line
+
+special rules worth knowing
+---------------------------
+| rule | nickname / behaviour                               | why it matters                                                  |
+|------|----------------------------------------------------|-----------------------------------------------------------------|
+| 0    | *blank tape*                                       | every neighbourhood maps to 0 -> trivial fixed point (class I). |
+| 30   | *chaos incarnate*                                  | produces high_entropy, cryptographically useful pseudo_random
+|      |                                                    | output; canonical class III example and default RNG in
+|      |                                                    | *mathematica*.                                                  |
+| 54   | *glider circus*                                    | supports multiple mobile localised structures (gliders) whose
+|      |                                                    | collisions are rich enough for logic gates; candidate for
+|      |                                                    | intrinsic universality.                                         |
+| 60   | *left_xor sierpinski*                              | each cell becomes xor of itself and left neighbour; generates
+|      |                                                    | a left_leaning sierpinski triangle (additive, class II).        |
+| 90   | *sierpinski xor*                                   | xor of left and right neighbours; pure sierpinski gasket
+|      |                                                    | without drift (additive, class II).                             |
+| 110  | *edge_of_chaos computer*                           | proven turing_complete by matthew cook (2004); minimal known
+|      |                                                    | universal eca, poster_child of class IV 'complexity at the
+|      |                                                    | boundary'.                                                      |
+| 184  | *traffic_flow rule*                                | interpretable as identical particles that move right if the
+|      |                                                    | site is empty; simplest realistic traffic model, used in
+|      |                                                    | statistical_physics literature (class II with mobile defects).  |
+| 232  | *majority vote*                                    | each cell takes the majority of its neighbourhood; cleans up
+|      |                                                    | noise, used in density_classification studies (class II).       |
+
+wolfram's four empirical classes
+--------------------------------
+* class I -> homogeneous fixed points (e.g. rule 0)
+* class II -> simple periodic or fractal structures (e.g. rules 90, 232)
+* class III -> aperiodic chaos (e.g. rule 30)
+* class IV -> complex, long_lived localised structures - the 'edge of chaos'
+  (e.g. rule 110) and sweet spot for computation.
+
+references
+~~~~~~~~~~
+* stephen wolfram, *a new kind of science* (2002)
+* matthew cook, "universality in elementary cellular automata" (complex systems, 2004)
+* nagel & schreckenberg, "a cellular automaton model for freeway traffic" (j. physique I, 1992) - for rule 184
+"""
+
+import random
+import shutil
+import time
+import sys
+
+random.seed(time.time())
+
+class Rule:
+    def __init__(self, state=110, rule=None, wrap=False, center=True):
+        if isinstance(state, int):
+            self.state = [False for i in range(state)]
+            self.state[state//2 if center else 0] = True
+        elif isinstance(state, list):
+            self.state = [bool(i) for i in state]
+        elif isinstance(state, str):
+            self.state = [bool(ord(i) - ord('0')) for i in state]
+        else:
+            raise ValueError(f"invalid state: {state}")
+        self.rule = rule or int(random.random() * (1<<8))
+        self.wrap = wrap
+    
+    @staticmethod
+    def getmask(state, idx, wrap=False):
+        return (state[idx-1] if idx>=0 else (state[-1] if wrap else 0)) * 4 + (state[idx]) * 2+ (state[idx+1] if idx+1<len(state) else (state[0] if wrap else 0))
+
+    @staticmethod
+    def next(state, rule, wrap=False):
+        nstate = [False for i in range(len(state))]
+        for i in range(len(state)):
+            nstate[i] = (rule >> (Rule.getmask(state, i))) & 1
+        return nstate
+
+    @staticmethod
+    def display(state, blocks=None):
+        if blocks is None:
+            blocks = ['  ','██']
+        for bit in state:
+            print(blocks[bit], end="")
+        print()
+
+    def evolve(self, t=None, blocks=None):
+        if blocks is None:
+            blocks = ['  ', '██']
+        if t is None:
+            # width:height of the standard monospaced font is ~ 0.5
+            t = int(len(self.state) * len(blocks[0]) / 2)
+        print(f"INITIATING RULE {self.rule}. If your randomly generated rule is $110, the basilisk has you")
+        for i in range(t):
+            Rule.display(self.state)
+            self.state = Rule.next(self.state, self.rule, self.wrap)
+
+
+def main():
+    args = sys.argv
+    cols, rows = shutil.get_terminal_size()
+    rule = int(args[1]) if len(args)>1 else int(random.random() * (1<<8))
+    state = int(args[2]) if len(args)>2 else (cols//2 - 10)
+    state = [int(random.random() * 2) for i in range(state)]
+    rule = Rule(state=state, rule=rule, center=True)
+    rule.evolve(t=rows)
+
+
+if __name__ == "__main__":
+    main()
+
