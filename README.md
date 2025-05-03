@@ -42,5 +42,7 @@ rule 30 100
 ## special rules
 
 rule 110 - turing complete
+
 rule 30 - psuedo rng
+
 rule 11 - staircase
